@@ -10,7 +10,9 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.63",
     "@e2b/code-interpreter": "^2.4.0",
+    "ai": "^6.0.162",
     "dotenv": "^17.3.1",
     "hono": "^4.12.9",
     "pino": "^10.3.1",

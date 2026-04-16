@@ -2,6 +2,7 @@ import { once } from "node:events";
 import { createWriteStream } from "node:fs";
 import z from "zod";
 
+import { parseAgentAnalysis } from "./parse-agent-analysis";
 import { logger } from "../utils/logger.util";
 import { runAgentAnalysisPipeline } from "./pipelines/run-agent-analysis.pipeline";
 
@@ -41,6 +42,15 @@ type RunSummary = {
       reasoning?: number;
     };
   };
+};
+
+export type RunOrchestratorResult = {
+  rawAnalysis: string;
+  structuredAnalysis: Awaited<ReturnType<typeof parseAgentAnalysis>>;
+  jsonlLogPath: string;
+  sessionId?: string;
+  toolCalls: string[];
+  finalStep?: RunSummary["lastStepFinish"];
 };
 
 function captureJsonLines(
@@ -195,6 +205,14 @@ export async function runOrchstrator(githubUrl: string) {
       throw new Error(result.error ?? result.stderr ?? "OpenCode run failed");
     }
 
+    const rawAnalysis = runSummary.textParts.join(" ").trim();
+
+    if (!rawAnalysis) {
+      throw new Error("OpenCode completed without returning analysis text");
+    }
+
+    const structuredAnalysis = await parseAgentAnalysis(rawAnalysis, googleApiKey);
+
     logger.info(
       {
         exitCode: result.exitCode,
@@ -202,11 +220,27 @@ export async function runOrchstrator(githubUrl: string) {
         eventCount: stdoutCapture.linesWritten,
         sessionId: runSummary.sessionId,
         toolCalls: [...runSummary.toolCalls],
-        responseText: runSummary.textParts.join(""),
+        responseText: rawAnalysis,
         finalStep: runSummary.lastStepFinish,
       },
       "Repository analysis completed",
     );
+
+    logger.info(
+      {
+        ...structuredAnalysis,
+      },
+      "Structured analysis generated",
+    );
+
+    return {
+      rawAnalysis,
+      structuredAnalysis,
+      jsonlLogPath,
+      sessionId: runSummary.sessionId,
+      toolCalls: [...runSummary.toolCalls],
+      finalStep: runSummary.lastStepFinish,
+    } satisfies RunOrchestratorResult;
   } finally {
     flushStdout();
     jsonlStream.end();

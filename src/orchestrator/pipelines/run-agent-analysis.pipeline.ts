@@ -1,7 +1,9 @@
 import { Sandbox } from "@e2b/code-interpreter";
 
-import { AgentRepoAnalysisPromptTemplate } from "../../prompts/agent-repo-analysis.prompt";
+import { RepoAnalysisSkillPromptTemplate } from "../../prompts/repo-analysis-skill.prompt";
 import { logger } from "../../utils/logger.util";
+
+
 
 const OPENCODE_CONFIG = JSON.stringify(
   {
@@ -14,7 +16,22 @@ const OPENCODE_CONFIG = JSON.stringify(
         },
       },
     },
-    model: "google/gemini-2.5-pro",
+    model: "google/gemini-3.1-pro-preview",
+    agent: {
+      plan: {
+        permission: {
+          edit: "deny",
+          bash: {
+            "*": "allow",
+          },
+          webfetch: "deny",
+          skill: {
+            "*": "deny",
+            "repo-analysis": "allow",
+          },
+        },
+      },
+    },
   },
   null,
   2,
@@ -33,9 +50,9 @@ export async function runAgentAnalysisPipeline({
   onStdout,
   onStderr,
 }: RunAgentAnalysisPipelineOptions) {
-  const repoAnalysisPromptTemplate = new AgentRepoAnalysisPromptTemplate();
+  const repoAnalysisPromptTemplate = new RepoAnalysisSkillPromptTemplate();
   const repoPath = "/home/user/repo";
-  const agentConfigPath = `${repoPath}/.opencode/agents/repo-analysis.md`;
+  const skillConfigPath = `${repoPath}/.opencode/skills/repo-analysis/SKILL.md`;
   const opencodeConfigPath = `${repoPath}/opencode.json`;
 
   logger.info("Creating E2B sandbox");
@@ -52,18 +69,18 @@ export async function runAgentAnalysisPipeline({
     depth: 1,
   });
 
-  logger.info({ agentConfigPath }, "Writing repo analysis agent config");
+  logger.info({ skillConfigPath }, "Writing repo analysis skill config");
   await sandbox.files.write(
-    agentConfigPath,
-    repoAnalysisPromptTemplate.agentConfigMarkdown,
+    skillConfigPath,
+    repoAnalysisPromptTemplate.skillMarkdown,
   );
 
   logger.info({ opencodeConfigPath }, "Writing OpenCode config");
   await sandbox.files.write(opencodeConfigPath, OPENCODE_CONFIG);
 
-  logger.info("Running OpenCode repo analysis agent");
+  logger.info("Running OpenCode repo analysis skill with plan agent");
   return sandbox.commands.run(
-    `opencode run --agent repo-analysis --format json "Analyze this repository for AI agent implementation patterns using static analysis only."`,
+    `opencode run --agent plan --format json "Load the \`repo-analysis\` skill and analyze this repository for AI agent implementation patterns using static analysis only. Follow the skill's output format exactly."`,
     {
       cwd: repoPath,
       onStdout: (data) => {

@@ -1,6 +1,6 @@
 import { PromptTemplate } from "../utils/prompt-template.util";
 
-export class AgentRepoAnalysisPromptTemplate {
+export class RepoAnalysisSkillPromptTemplate {
   private readonly promptInternal =
     new PromptTemplate(`# AI Agent Repository Static Analyzer Prompt
 
@@ -210,14 +210,9 @@ Reasoning:
 <short explanation>
 `);
 
-  private readonly agentConfigMarkdownInternal = new PromptTemplate(`---
-description: Static analyzer for detecting AI agent repositories
-temperature: 0.1
-permission:
-  edit: deny
-  bash:
-    "*": allow
-  webfetch: deny
+  private readonly skillMarkdownInternal = new PromptTemplate(`---
+name: repo-analysis
+description: Analyze a repository for AI agent implementation patterns using static analysis only.
 ---
 {{prompt}}
 `);
@@ -226,8 +221,8 @@ permission:
     return this.promptInternal;
   }
 
-  get agentConfigMarkdown() {
-    return this.agentConfigMarkdownInternal.inject({
+  get skillMarkdown() {
+    return this.skillMarkdownInternal.inject({
       prompt: this.promptInternal.getTemplate(),
     });
   }
